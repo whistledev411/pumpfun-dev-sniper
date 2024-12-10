@@ -9,7 +9,6 @@ import { commitment, PUMP_FUN_PROGRAM } from "./constants";
 import { convertHttpToWebSocket, formatDate } from "./utils/commonFunc";
 
 import WebSocket = require("ws");
-import buyToken from "./pumputils/utils/buyToken";
 import { Metaplex } from "@metaplex-foundation/js";
 
 dotnet.config();
@@ -70,7 +69,8 @@ const init = async (rpcEndPoint: string, payer: string, solIn: number, devAddr: 
                     if (!parsedTransaction) {
                         return;
                     }
-                    console.log("New signature => ", `https://solscan.io/tx/${signature}`, await formatDate());
+                    console.time('analyze')
+                    console.log("New signature => ", `https://solscan.io/tx/${signature}`, formatDate());
                     let dev = parsedTransaction?.transaction.message.accountKeys[0].pubkey.toString();
                     const mint = parsedTransaction?.transaction.message.accountKeys[1].pubkey;
                     if (isDevMode) {
@@ -90,14 +90,9 @@ const init = async (rpcEndPoint: string, payer: string, solIn: number, devAddr: 
                     console.log('New token => ', `https://solscan.io/token/${mint.toString()}`)
                     await stopListener()
                     isBuying = true;
-                    const sig = await buyToken(mint, connection, payerKeypair, solIn, 1);
-                    console.log('Buy Transaction => ', `https://solscan.io/tx/${sig}`)
-                    if (!sig) {
-                        isBuying = false;
-                    } else {
-                        console.log('🚀 Buy Success!!!');
-                        console.log('Try to sell on pumpfun: ', `https://pump.fun/${mint.toString()}`)
-                    }
+                    console.timeEnd('analyze')
+                    console.time('buytoken')
+                    // Buy/Sell Part
 
                 }
             },
@@ -114,7 +109,7 @@ const withGaser = (rpcEndPoint: string, payer: string, solIn: number, devAddr: s
     const GEYSER_RPC = process.env.GEYSER_RPC;
     if (!GEYSER_RPC) return console.log('Geyser RPC is not provided!');
     const ws = new WebSocket(GEYSER_RPC);
-    const connection = new Connection(rpcEndPoint, { wsEndpoint: convertHttpToWebSocket(rpcEndPoint), commitment: "processed" });
+    const connection = new Connection(rpcEndPoint, { wsEndpoint: convertHttpToWebSocket(rpcEndPoint), commitment: "confirmed" });
     const payerKeypair = Keypair.fromSecretKey(base58.decode(payer))
 
     console.log('Your Pub Key => ', payerKeypair.publicKey.toString())
@@ -159,7 +154,7 @@ const withGaser = (rpcEndPoint: string, payer: string, solIn: number, devAddr: s
                 const dev = accountKeys[0]
                 const mint = accountKeys[1]
 
-                console.log("New signature => ", `https://solscan.io/tx/${signature}`, await formatDate());
+                console.log("New signature => ", `https://solscan.io/tx/${signature}`, formatDate());
                 if (isDevMode) {
                     console.log("Dev wallet => ", `https://solscan.io/address/${dev}`);
                 }
@@ -177,17 +172,7 @@ const withGaser = (rpcEndPoint: string, payer: string, solIn: number, devAddr: s
                 console.log('New token => ', `https://solscan.io/token/${mint.toString()}`)
                 ws.close();
                 const mintPub = new PublicKey(mint);
-                const sig = await buyToken(mintPub, connection, payerKeypair, solIn, 1);
-                console.log('Buy Transaction => ', `https://solscan.io/tx/${sig}`)
-                if (!sig) {
-                    ws.on('open', function open() {
-                        console.log('WebSocket is open');
-                        sendRequest(ws);  // Send a request once the WebSocket is open
-                    });
-                } else {
-                    console.log('🚀 Buy Success!!!');
-                    console.log('Try to sell on pumpfun: ', `https://pump.fun/${mint.toString()}`)
-                }
+                // Buy/Sell Part
 
             }
         } catch (e) {
